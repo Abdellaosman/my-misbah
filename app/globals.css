@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* --- Core brand palette pulled from the My Misbah flame logo --- */
+  --color-navy: #1A2B50;       /* deep midnight navy  (top of flame drop) */
+  --color-navy-dark: #101d38;  /* darkest navy for footer/headers          */
+  --color-navy-light: #2d4575; /* lighter navy for hovers                  */
+  --color-navy-muted: #3d5480; /* muted navy for secondary elements        */
+  --color-flame: #C8680A;      /* rich amber-orange  (mid flame)           */
+  --color-flame-bright: #E07D10; /* brighter orange   (inner flame)        */
+  --color-gold: #F0A500;       /* warm gold          (centre glow)         */
+  --color-gold-pale: #FBF0D8;  /* pale gold tint for card accents          */
+  --color-cream: #FAF8F3;      /* warm off-white page background           */
+  --color-warm: #F3EDE0;       /* section background                       */
+  --color-warm-mid: #EAE3D4;   /* card borders / dividers                  */
+  --color-warm-border: #DDD5C4;
+  --color-charcoal: #1a1a2e;
+  --color-muted: #6b6878;
+  --color-muted-light: #9895a2;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif), Georgia, serif;
 }
