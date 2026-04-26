@@ -3,7 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
+
+const navLinks = [
+  { label: "Find a Guide", href: "/guides" },
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "FAQ", href: "/faq" },
+  { label: "Resources", href: "/resources" },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -32,35 +39,31 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-8">
-          <Link
-            href="/guides"
-            className="text-blue-100 hover:text-white text-sm font-medium transition-colors"
-          >
-            Find a Guide
-          </Link>
-          <Link
-            href="/#how-it-works"
-            className="text-blue-100 hover:text-white text-sm font-medium transition-colors"
-          >
-            How It Works
-          </Link>
-          <Link
-            href="/#about"
-            className="text-blue-100 hover:text-white text-sm font-medium transition-colors"
-          >
-            About
-          </Link>
+        <div className="hidden md:flex items-center gap-7">
+          {navLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="text-blue-100 hover:text-white text-sm font-medium transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/guides"
-            className="bg-[#C8680A] hover:bg-[#E07D10] text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm"
+          <a
+            href="https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm"
+            style={{
+              background: "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)",
+            }}
           >
-            Speak to a Guide
-          </Link>
+            Book Now
+          </a>
         </div>
 
         {/* Mobile menu button */}
@@ -77,34 +80,30 @@ export default function Navbar() {
       {open && (
         <div className="md:hidden border-t border-[#2d4575] bg-[#1A2B50] px-6 pb-4 pt-2">
           <div className="flex flex-col gap-1">
-            <Link
-              href="/guides"
+            {navLinks.map((link, i) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className={`text-blue-100 hover:text-white py-2.5 text-sm font-medium ${
+                  i < navLinks.length - 1 ? "border-b border-[#2d4575]" : ""
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <a
+              href="https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg"
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setOpen(false)}
-              className="text-blue-100 hover:text-white py-2.5 text-sm font-medium border-b border-[#2d4575]"
+              className="mt-3 text-white text-sm font-semibold px-4 py-2.5 rounded-lg text-center"
+              style={{
+                background: "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)",
+              }}
             >
-              Find a Guide
-            </Link>
-            <Link
-              href="/#how-it-works"
-              onClick={() => setOpen(false)}
-              className="text-blue-100 hover:text-white py-2.5 text-sm font-medium border-b border-[#2d4575]"
-            >
-              How It Works
-            </Link>
-            <Link
-              href="/#about"
-              onClick={() => setOpen(false)}
-              className="text-blue-100 hover:text-white py-2.5 text-sm font-medium"
-            >
-              About
-            </Link>
-            <Link
-              href="/guides"
-              onClick={() => setOpen(false)}
-              className="mt-3 bg-[#C8680A] text-white text-sm font-semibold px-4 py-2.5 rounded-lg text-center"
-            >
-              Speak to a Guide
-            </Link>
+              Book Now
+            </a>
           </div>
         </div>
       )}

@@ -9,8 +9,12 @@ import {
   Shield,
   ArrowLeft,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { guides, getGuideById, getInitials } from "@/lib/data";
+
+const BOOKING_URL =
+  "https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg";
 
 export async function generateStaticParams() {
   return guides.map((g) => ({ id: g.id }));
@@ -56,7 +60,7 @@ export default async function GuideProfilePage({
         </div>
       </div>
 
-      {/* Hero banner with flame glow */}
+      {/* Hero banner */}
       <div
         className="bg-[#1A2B50] px-6 pb-10 relative overflow-hidden"
         style={{
@@ -66,7 +70,6 @@ export default async function GuideProfilePage({
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-8">
-            {/* Avatar */}
             <div
               className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
               style={{
@@ -121,7 +124,7 @@ export default async function GuideProfilePage({
       {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* LEFT: Profile detail */}
+          {/* LEFT */}
           <div className="lg:col-span-2 space-y-8">
             {/* About */}
             <section className="bg-white rounded-2xl border border-[#EAE3D4] p-8 shadow-sm">
@@ -135,7 +138,10 @@ export default async function GuideProfilePage({
               </div>
               <div className="space-y-4">
                 {guide.fullBio.split("\n\n").map((para, i) => (
-                  <p key={i} className="text-[#4a4a5a] leading-relaxed text-base">
+                  <p
+                    key={i}
+                    className="text-[#4a4a5a] leading-relaxed text-base"
+                  >
                     {para}
                   </p>
                 ))}
@@ -241,7 +247,7 @@ export default async function GuideProfilePage({
             <div className="sticky top-24 space-y-4">
               {/* Booking card */}
               <div className="bg-white rounded-2xl border border-[#EAE3D4] shadow-sm overflow-hidden">
-                {/* Card header — flame gradient */}
+                {/* Card header */}
                 <div
                   className="p-5"
                   style={{
@@ -256,60 +262,71 @@ export default async function GuideProfilePage({
                     </h3>
                   </div>
                   <p className="text-blue-200 text-xs">
-                    Choose the session type that&apos;s right for you.
+                    Private, one-on-one guidance with {guide.name.split(" ")[0]}.
                   </p>
                 </div>
 
-                <div className="p-5 space-y-3">
-                  {guide.bookingOptions.map((option, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-xl border p-4 cursor-pointer transition-colors ${
-                        i === 0
-                          ? "border-[#C8680A]/40 bg-[#FDFAF4]"
-                          : "border-[#EAE3D4] bg-[#FAF8F3]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <span className="font-medium text-[#1A2B50] text-sm">
-                          {option.type}
+                <div className="p-5">
+                  {/* Session options */}
+                  <div className="space-y-3 mb-5">
+                    <div className="rounded-xl border border-[#C8680A]/30 bg-[#FDFAF4] p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-[#1A2B50] text-sm">
+                          50 Minute Session
                         </span>
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                            option.price === "Free"
-                              ? "bg-green-50 text-green-700 border border-green-200"
-                              : "bg-[#FBF0D8] text-[#8a5200]"
-                          }`}
-                        >
-                          {option.price}
+                        <span className="text-[#C8680A] font-bold text-sm">
+                          $80
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 mb-2">
+                      <div className="flex items-center gap-1.5">
                         <Clock size={12} className="text-[#9895a2]" />
                         <span className="text-xs text-[#9895a2]">
-                          {option.duration}
+                          Full guidance session
                         </span>
                       </div>
-                      <p className="text-xs text-[#6b6878] leading-relaxed">
-                        {option.description}
-                      </p>
                     </div>
-                  ))}
 
-                  <button
-                    className="w-full text-white font-semibold py-3 rounded-xl transition-colors text-sm mt-2 flex items-center justify-center gap-2 shadow-sm"
+                    <div className="rounded-xl border border-[#EAE3D4] bg-[#FAF8F3] p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-[#1A2B50] text-sm">
+                          25 Minute Session
+                        </span>
+                        <span className="text-[#C8680A] font-bold text-sm">
+                          $35
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-[#9895a2]" />
+                        <span className="text-xs text-[#9895a2]">
+                          Focused Q&amp;A or follow-up
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Book Now CTA */}
+                  <a
+                    href={BOOKING_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-white font-bold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:brightness-110"
                     style={{
                       background:
                         "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)",
                     }}
                   >
-                    <Calendar size={15} />
-                    Select a Time
-                  </button>
+                    <Calendar size={16} />
+                    Book Now
+                    <ExternalLink size={13} className="opacity-70" />
+                  </a>
+
+                  <p className="text-center text-xs text-[#9895a2] mt-3">
+                    Secure booking via Carepatron
+                  </p>
                 </div>
               </div>
 
-              {/* Confidentiality notice */}
+              {/* Confidentiality */}
               <div className="bg-[#F3EDE0] rounded-2xl border border-[#EAE3D4] p-5 flex items-start gap-3">
                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                   <Shield size={16} className="text-[#1A2B50]" />
@@ -325,20 +342,16 @@ export default async function GuideProfilePage({
                 </div>
               </div>
 
-              {/* Rooted in */}
-              <div className="bg-white rounded-2xl border border-[#EAE3D4] p-5 flex items-start gap-3">
-                <div className="w-8 h-8 bg-[#FBF0D8] rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BookOpen size={16} className="text-[#C8680A]" />
-                </div>
-                <div>
-                  <p className="font-semibold text-[#1A2B50] text-sm mb-1">
-                    Rooted in Islamic Tradition
-                  </p>
-                  <p className="text-[#6b6878] text-xs leading-relaxed">
-                    Guidance grounded in Quran and Sunnah, offered with
-                    compassion and without judgement.
-                  </p>
-                </div>
+              {/* Cancellation note */}
+              <div className="bg-white rounded-2xl border border-[#EAE3D4] p-5">
+                <p className="text-xs text-[#6b6878] leading-relaxed">
+                  <span className="font-semibold text-[#1A2B50]">
+                    Cancellation policy:
+                  </span>{" "}
+                  Appointments may be cancelled or rescheduled up to 48 hours in
+                  advance without penalty. Changes within 48 hours may be charged
+                  in full.
+                </p>
               </div>
             </div>
           </div>
