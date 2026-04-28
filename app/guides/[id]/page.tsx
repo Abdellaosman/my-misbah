@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MapPin,
   CheckCircle,
@@ -70,16 +71,32 @@ export default async function GuideProfilePage({
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-8">
+            {/* Avatar — real photo or initials fallback */}
             <div
-              className="w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
-              style={{
-                background: "linear-gradient(135deg, #1A2B50 0%, #2d4575 100%)",
-                border: "2px solid rgba(200,104,10,0.4)",
-              }}
+              className="w-28 h-28 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg"
+              style={{ border: "2px solid rgba(200,104,10,0.4)" }}
             >
-              <span className="text-white font-serif text-3xl font-bold">
-                {initials}
-              </span>
+              {guide.image ? (
+                <Image
+                  src={guide.image}
+                  alt={guide.name}
+                  width={112}
+                  height={112}
+                  className="w-full h-full object-cover object-top"
+                  priority
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(135deg, #1A2B50 0%, #2d4575 100%)",
+                  }}
+                >
+                  <span className="text-white font-serif text-3xl font-bold">
+                    {initials}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 min-w-0">

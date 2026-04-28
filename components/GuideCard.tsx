@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, CheckCircle } from "lucide-react";
 import { Guide, getInitials } from "@/lib/data";
 
@@ -22,14 +23,28 @@ export default function GuideCard({ guide }: GuideCardProps) {
       <div className="p-6 flex flex-col flex-1">
         {/* Avatar + name row */}
         <div className="flex items-start gap-4 mb-4">
-          <div className="w-16 h-16 rounded-xl bg-[#1A2B50] flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-serif text-xl font-bold">
-              {initials}
-            </span>
+          {/* Photo or initials fallback */}
+          <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#1A2B50]">
+            {guide.image ? (
+              <Image
+                src={guide.image}
+                alt={guide.name}
+                width={64}
+                height={64}
+                className="w-full h-full object-cover object-top"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-white font-serif text-xl font-bold">
+                  {initials}
+                </span>
+              </div>
+            )}
           </div>
+
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="font-serif font-semibold text-[#1B2B4B] text-lg leading-tight">
+              <h3 className="font-serif font-semibold text-[#1A2B50] text-lg leading-tight">
                 {guide.name}
               </h3>
               {guide.verified && (
@@ -72,13 +87,13 @@ export default function GuideCard({ guide }: GuideCardProps) {
           {guide.expertise.slice(0, 4).map((tag) => (
             <span
               key={tag}
-              className="text-xs bg-[#EEF1F8] text-[#2d4270] px-2.5 py-1 rounded-full font-medium"
+              className="text-xs bg-[#EEF1F8] text-[#2d4575] px-2.5 py-1 rounded-full font-medium"
             >
               {tag}
             </span>
           ))}
           {guide.expertise.length > 4 && (
-            <span className="text-xs bg-[#EEF1F8] text-[#2d4270] px-2.5 py-1 rounded-full font-medium">
+            <span className="text-xs bg-[#EEF1F8] text-[#2d4575] px-2.5 py-1 rounded-full font-medium">
               +{guide.expertise.length - 4} more
             </span>
           )}

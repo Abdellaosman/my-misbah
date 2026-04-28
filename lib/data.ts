@@ -29,7 +29,7 @@ export const guides: Guide[] = [
     name: "Sheikh Zubair Sidyot",
     title: "Imam, Educator & Spiritual Counsellor",
     location: "Lethbridge, Alberta",
-    image: "",
+    image: "/zubair.png",
     shortBio:
       "A compassionate Imam with deep roots in Quranic scholarship and spiritual counselling. Sheikh Zubair brings patient, non-judgmental guidance to every session.",
     fullBio:
@@ -80,7 +80,7 @@ export const guides: Guide[] = [
     name: "Sheikh Yahya Abdi Hadi",
     title: "Imam & Educator",
     location: "Richmond, BC",
-    image: "",
+    image: "/yahya.png",
     shortBio:
       "A graduate of the Islamic University of Madinah with over a decade of community service, Sheikh Yahya blends scholarly depth with an approachable, grounded presence.",
     fullBio:
@@ -127,7 +127,7 @@ export const guides: Guide[] = [
     name: "Sheikh Osama Raja",
     title: "Imam & Educator",
     location: "Calgary, Alberta",
-    image: "",
+    image: "/osama.png",
     shortBio:
       "With over a decade of Imam experience across Surrey and Calgary, Sheikh Osama specialises in youth mentorship, relationship guidance, and supporting people through life transitions.",
     fullBio:
