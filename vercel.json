@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/retry-zoom-meetings",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-reservations",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

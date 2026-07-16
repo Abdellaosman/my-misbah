@@ -162,6 +162,30 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
   }
 }
 
+async function triggerPostConfirmationSideEffects(appointmentId: string): Promise<void> {
+  // Intentionally fire-and-forget from the webhook's perspective: any
+  // failure here must not fail the webhook response (Stripe would retry
+  // and we've already confirmed the appointment). lib/video's own retry
+  // sweep (cron) is the durability mechanism for Zoom specifically; failed
+  // emails are simply logged (Notification.status = FAILED) for now.
+  try {
+    const { ensureZoomMeetingForAppointment } = await import("@/lib/video/zoom");
+    await ensureZoomMeetingForAppointment(appointmentId);
+  } catch (err) {
+    logger.error("Post-confirmation Zoom meeting creation failed; will be retried by cron sweep", {
+      err,
+      appointmentId,
+    });
+  }
+
+  try {
+    const { sendBookingConfirmationEmails } = await import("@/lib/email/send");
+    await sendBookingConfirmationEmails(appointmentId);
+  } catch (err) {
+    logger.error("Post-confirmation emails failed", { err, appointmentId });
+  }
+}
+
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
   const appointmentId = paymentIntent.metadata?.appointmentId;
   if (!appointmentId) return;
@@ -246,20 +270,4 @@ async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
     targetId: paymentIntentId ?? undefined,
     metadata: { disputeId: dispute.id, reason: dispute.reason, amount: dispute.amount },
   });
-}
-
-async function triggerPostConfirmationSideEffects(appointmentId: string): Promise<void> {
-  // Intentionally fire-and-forget from the webhook's perspective: any
-  // failure here must not fail the webhook response (Stripe would retry
-  // and we've already confirmed the appointment). lib/video's own retry
-  // sweep (cron) is the durability mechanism for Zoom specifically.
-  try {
-    const { ensureZoomMeetingForAppointment } = await import("@/lib/video/zoom");
-    await ensureZoomMeetingForAppointment(appointmentId);
-  } catch (err) {
-    logger.error("Post-confirmation Zoom meeting creation failed; will be retried by cron sweep", {
-      err,
-      appointmentId,
-    });
-  }
 }
