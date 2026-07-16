@@ -28,7 +28,7 @@ You acknowledge that spiritual guidance is inherently personal and interpretive,
   {
     number: "4",
     title: "Platform Use",
-    content: `My Misbah uses Carepatron for scheduling, communication, record-keeping, and service delivery.
+    content: `My Misbah operates its own booking, payment, and video-consultation platform (with payments processed by Stripe and video sessions hosted via Zoom) for scheduling, communication, record-keeping, and service delivery.
 
 You agree to use the platform lawfully and respectfully, not misuse, disrupt, or attempt unauthorized access, and provide accurate and truthful information to the best of your knowledge.`,
   },
