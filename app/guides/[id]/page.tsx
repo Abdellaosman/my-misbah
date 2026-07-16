@@ -10,12 +10,8 @@ import {
   Shield,
   ArrowLeft,
   Calendar,
-  ExternalLink,
 } from "lucide-react";
 import { guides, getGuideById, getInitials } from "@/lib/data";
-
-const BOOKING_URL =
-  "https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg";
 
 export async function generateStaticParams() {
   return guides.map((g) => ({ id: g.id }));
@@ -322,10 +318,8 @@ export default async function GuideProfilePage({
                   </div>
 
                   {/* Book Now CTA */}
-                  <a
-                    href={BOOKING_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href={`/book/${guide.id}`}
                     className="w-full text-white font-bold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:brightness-110"
                     style={{
                       background:
@@ -334,11 +328,10 @@ export default async function GuideProfilePage({
                   >
                     <Calendar size={16} />
                     Book Now
-                    <ExternalLink size={13} className="opacity-70" />
-                  </a>
+                  </Link>
 
                   <p className="text-center text-xs text-[#9895a2] mt-3">
-                    Secure booking via Carepatron
+                    Secure, confidential booking
                   </p>
                 </div>
               </div>

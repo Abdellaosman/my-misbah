@@ -30,12 +30,12 @@ We collect only the minimum information necessary to deliver services responsibl
   },
   {
     number: "4",
-    title: "Platform & Data Security (Carepatron)",
-    content: `My Misbah uses Carepatron as its secure practice-management platform.
+    title: "Platform & Data Security",
+    content: `My Misbah operates its own secure booking and consultation-management platform, built on an encrypted PostgreSQL database with role-based access controls for Guides and administrators.
 
-Carepatron provides encrypted data storage and transmission, role-based access controls, secure cloud infrastructure, ongoing security monitoring and updates, and compliance with recognized international data-security standards (including HIPAA-aligned safeguards and ISO-based security practices, where applicable).
+Payments are processed by Stripe, and video sessions are hosted through Zoom; My Misbah never stores your full payment card details. Our platform uses encrypted data transmission (HTTPS), hashed and salted account credentials, encrypted storage of sensitive connection tokens, and ongoing security monitoring and audit logging of administrative access.
 
-While Carepatron applies industry-standard protections, no digital system can guarantee absolute security. By using My Misbah, you acknowledge and accept this inherent risk.`,
+While we apply industry-standard protections, no digital system can guarantee absolute security. By using My Misbah, you acknowledge and accept this inherent risk.`,
   },
   {
     number: "5",

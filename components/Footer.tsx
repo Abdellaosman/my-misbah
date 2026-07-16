@@ -29,17 +29,15 @@ export default function Footer() {
               Confidential, one-on-one guidance rooted in Islamic tradition — for
               moments when clarity is what you need most.
             </p>
-            <a
-              href="https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/book"
               className="inline-block mt-5 text-sm font-semibold text-white px-5 py-2.5 rounded-xl"
               style={{
                 background: "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)",
               }}
             >
               Book a Session
-            </a>
+            </Link>
           </div>
 
           {/* Navigate */}

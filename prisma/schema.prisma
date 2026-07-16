@@ -1,0 +1,665 @@
+// My Misbah booking platform — Prisma schema (PostgreSQL)
+//
+// Conventions:
+// - UUID primary keys everywhere (no sequential/guessable IDs exposed publicly).
+// - Money stored as Decimal(10,2); converted to integer minor units only at the
+//   Stripe API boundary (see lib/payments).
+// - All instant-in-time columns use `@db.Timestamptz(3)` (stored in UTC) so
+//   Postgres range types (used by the exclusion constraint below) and any
+//   timezone-aware comparisons are unambiguous. `AvailabilityOverride.date` is
+//   the one exception — it represents a calendar date, not an instant.
+// - Soft delete (`deletedAt`) on account/catalog rows only. Appointments,
+//   Payments, Refunds, StripeWebhookEvent and AuditLog are append-only and are
+//   never deleted — only status-transitioned — to preserve financial/audit
+//   integrity.
+// - A Postgres EXCLUDE constraint (added via raw SQL in a migration, see
+//   prisma/migrations/*_add_booking_exclusion_constraint/migration.sql)
+//   guarantees no two HOLDING reservations / non-cancelled appointments can
+//   overlap for the same practitioner, independent of any application logic.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  PRACTITIONER
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DISABLED
+}
+
+enum ReservationStatus {
+  HOLDING
+  CONVERTED
+  EXPIRED
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_PRACTITIONER
+  CANCELLED_BY_ADMIN
+  COMPLETED
+  NO_SHOW
+  PAYMENT_FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  REQUIRES_PAYMENT
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum IntakeFieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  DROPDOWN
+  RADIO
+  MULTI_SELECT
+  CHECKBOX
+  AGREEMENT
+}
+
+enum IntakeScope {
+  GLOBAL
+  SERVICE
+  PRACTITIONER
+}
+
+enum NotificationType {
+  BOOKING_STARTED
+  APPOINTMENT_CONFIRMED
+  PAYMENT_RECEIPT
+  APPOINTMENT_REMINDER
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CANCELLED
+  REFUND_ISSUED
+  PRACTITIONER_CANCELLATION
+  ZOOM_CONNECTION_FAILURE
+  NEW_APPOINTMENT_PRACTITIONER
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum ZoomConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+/// Practitioners and admins only. Clients are guests (see `Client`) — the
+/// `userId` FK on `Client` is reserved for when full client accounts ship.
+model User {
+  id                       String        @id @default(uuid())
+  email                    String        @unique
+  passwordHash             String
+  role                     UserRole
+  status                   AccountStatus @default(PENDING_APPROVAL)
+  emailVerifiedAt          DateTime?     @db.Timestamptz(3)
+  twoFactorEnabled         Boolean       @default(false)
+  twoFactorSecretEncrypted String?
+  createdAt                DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime      @updatedAt @db.Timestamptz(3)
+  deletedAt                DateTime?     @db.Timestamptz(3)
+
+  practitionerProfile PractitionerProfile?
+  sessions            Session[]
+  auditLogsAsActor    AuditLog[]           @relation("AuditLogActor")
+  internalNotes       InternalNote[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([role, status])
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+/// Fixed-window counters for login/booking/checkout rate limiting.
+/// Postgres-backed so limits are correct across concurrent serverless
+/// invocations (an in-memory Map would not be).
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime @db.Timestamptz(3)
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// ---------------------------------------------------------------------------
+// Practitioners, services, availability
+// ---------------------------------------------------------------------------
+
+model PractitionerProfile {
+  id                     String         @id @default(uuid())
+  userId                 String         @unique
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug                   String         @unique
+  displayName            String
+  title                  String?
+  shortBio               String?
+  fullBio                String?
+  photoUrl               String?
+  qualifications         String[]
+  languages              String[]
+  areasOfGuidance        String[]
+  timezone               String
+  approvalStatus         ApprovalStatus @default(PENDING)
+  stripeConnectAccountId String?
+  createdAt              DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime       @updatedAt @db.Timestamptz(3)
+  deletedAt              DateTime?      @db.Timestamptz(3)
+
+  services              Service[]
+  availabilityRules     AvailabilityRule[]
+  availabilityOverrides AvailabilityOverride[]
+  timeOff               TimeOff[]
+  appointments          Appointment[]
+  zoomConnection        ZoomConnection?
+
+  @@index([approvalStatus])
+}
+
+model ServiceCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  services Service[]
+}
+
+model Service {
+  id                      String              @id @default(uuid())
+  practitionerId          String
+  practitioner            PractitionerProfile @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  categoryId              String?
+  category                ServiceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name                    String
+  slug                    String
+  description             String
+  durationMinutes         Int
+  price                   Decimal             @db.Decimal(10, 2)
+  currency                String              @default("usd")
+  isVirtual               Boolean             @default(true)
+  isActive                Boolean             @default(true)
+  approvalStatus          ApprovalStatus      @default(APPROVED)
+  minNoticeMinutes        Int                 @default(120)
+  maxAdvanceDays          Int                 @default(60)
+  bufferBeforeMinutes     Int                 @default(0)
+  bufferAfterMinutes      Int                 @default(0)
+  cancellationWindowHours Int                 @default(48)
+  cancellationPolicy      String?
+  refundPolicy            String?
+  intakeFormId            String?
+  intakeForm              IntakeForm?         @relation(fields: [intakeFormId], references: [id], onDelete: SetNull)
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
+  deletedAt               DateTime?           @db.Timestamptz(3)
+
+  reservations BookingReservation[]
+  appointments Appointment[]
+
+  @@unique([practitionerId, slug])
+  @@index([practitionerId, isActive])
+}
+
+/// Recurring weekly availability. `startMinute`/`endMinute` are minutes since
+/// local midnight *in the practitioner's timezone* (`PractitionerProfile.timezone`).
+model AvailabilityRule {
+  id             String              @id @default(uuid())
+  practitionerId String
+  practitioner   PractitionerProfile @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  weekday        Int // 0 = Sunday ... 6 = Saturday
+  startMinute    Int
+  endMinute      Int
+  serviceId      String? // null = applies to all of this practitioner's services
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([practitionerId, weekday])
+}
+
+/// One-off addition or removal of a window on a specific date, e.g. "open an
+/// extra evening slot on Ramadan 15th" or "close early on Dec 24th".
+model AvailabilityOverride {
+  id             String              @id @default(uuid())
+  practitionerId String
+  practitioner   PractitionerProfile @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  date           DateTime            @db.Date // calendar date (practitioner-local), not a UTC instant
+  startMinute    Int
+  endMinute      Int
+  isAvailable    Boolean // true = extra opening, false = block this window
+  reason         String?
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+
+  @@index([practitionerId, date])
+}
+
+/// Whole day(s) or date ranges off: holidays, travel, extended leave.
+model TimeOff {
+  id             String              @id @default(uuid())
+  practitionerId String
+  practitioner   PractitionerProfile @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  startAt        DateTime            @db.Timestamptz(3)
+  endAt          DateTime            @db.Timestamptz(3)
+  reason         String?
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+
+  @@index([practitionerId, startAt, endAt])
+}
+
+// ---------------------------------------------------------------------------
+// Booking, appointments
+// ---------------------------------------------------------------------------
+
+/// A temporary hold on a slot while the client completes intake + payment.
+/// Expires automatically (`expiresAt`, ~12 minutes) if payment isn't confirmed.
+/// A Postgres EXCLUDE constraint (see migrations) prevents two HOLDING
+/// reservations (or a reservation and a confirmed appointment) from
+/// overlapping for the same practitioner.
+model BookingReservation {
+  id             String            @id @default(uuid())
+  practitionerId String
+  serviceId      String
+  service        Service           @relation(fields: [serviceId], references: [id])
+  startAt        DateTime          @db.Timestamptz(3)
+  endAt          DateTime          @db.Timestamptz(3)
+  status         ReservationStatus @default(HOLDING)
+  expiresAt      DateTime          @db.Timestamptz(3)
+  clientEmail    String?
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+
+  intakeSubmission IntakeSubmission?
+  consentRecords   ConsentRecord[]
+  appointment      Appointment?
+
+  @@index([practitionerId, startAt, endAt])
+  @@index([status, expiresAt])
+}
+
+model Appointment {
+  id                   String              @id @default(uuid())
+  publicId             String              @unique
+  practitionerId       String
+  practitioner         PractitionerProfile @relation(fields: [practitionerId], references: [id])
+  serviceId            String
+  service              Service             @relation(fields: [serviceId], references: [id])
+  clientId             String
+  client               Client              @relation(fields: [clientId], references: [id])
+  reservationId        String?             @unique
+  reservation          BookingReservation? @relation(fields: [reservationId], references: [id])
+  startAt              DateTime            @db.Timestamptz(3)
+  endAt                DateTime            @db.Timestamptz(3)
+  clientTimezone       String
+  practitionerTimezone String
+  priceAmount          Decimal             @db.Decimal(10, 2)
+  currency             String
+  status               AppointmentStatus   @default(PENDING_PAYMENT)
+  paymentStatus        PaymentStatus       @default(REQUIRES_PAYMENT)
+  intakeSubmissionId   String?             @unique
+  intakeSubmission     IntakeSubmission?   @relation(fields: [intakeSubmissionId], references: [id])
+  cancelledAt          DateTime?           @db.Timestamptz(3)
+  cancelledByUserId    String?
+  cancelledByClient    Boolean             @default(false)
+  cancellationReason   String?
+  completedAt          DateTime?           @db.Timestamptz(3)
+  noShowMarkedAt       DateTime?           @db.Timestamptz(3)
+  createdAt            DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime            @updatedAt @db.Timestamptz(3)
+
+  statusHistory AppointmentStatusHistory[]
+  payment       Payment?
+  zoomMeeting   ZoomMeeting?
+  internalNotes InternalNote[]
+  accessTokens  AppointmentAccessToken[]
+  notifications Notification[]
+
+  @@index([practitionerId, startAt])
+  @@index([clientId])
+  @@index([status])
+}
+
+model AppointmentStatusHistory {
+  id              String             @id @default(uuid())
+  appointmentId   String
+  appointment     Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  fromStatus      AppointmentStatus?
+  toStatus        AppointmentStatus
+  changedByUserId String?
+  changedByClient Boolean            @default(false)
+  reason          String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+
+  @@index([appointmentId])
+}
+
+/// Guest-first: a booking client record keyed by email. `userId` is reserved
+/// for Phase 3 when full client accounts are introduced.
+model Client {
+  id                String    @id @default(uuid())
+  userId            String?   @unique
+  firstName         String
+  lastName          String
+  email             String    @unique
+  phone             String?
+  country           String?
+  timezone          String
+  preferredLanguage String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt         DateTime? @db.Timestamptz(3)
+
+  appointments Appointment[]
+}
+
+// ---------------------------------------------------------------------------
+// Intake forms
+// ---------------------------------------------------------------------------
+
+model IntakeForm {
+  id             String      @id @default(uuid())
+  name           String
+  scope          IntakeScope
+  /// Informational only for PRACTITIONER/SERVICE scoped forms (no FK — the
+  /// actual assignment to a service happens via `Service.intakeFormId`).
+  practitionerId String?
+  serviceId      String?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
+
+  questions IntakeQuestion[]
+  services  Service[]
+}
+
+model IntakeQuestion {
+  id         String          @id @default(uuid())
+  formId     String
+  form       IntakeForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  label      String
+  helpText   String?
+  fieldType  IntakeFieldType
+  options    Json?
+  isRequired Boolean         @default(true)
+  order      Int             @default(0)
+
+  answers IntakeAnswer[]
+
+  @@index([formId, order])
+}
+
+/// 1:1 with a reservation at submission time; carried over to the
+/// appointment once payment is confirmed.
+model IntakeSubmission {
+  id                   String             @id @default(uuid())
+  reservationId        String             @unique
+  reservation          BookingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reasonForBooking     String
+  situationDescription String
+  backgroundInfo       String?
+  desiredOutcome       String?
+  submittedAt          DateTime           @default(now()) @db.Timestamptz(3)
+
+  answers     IntakeAnswer[]
+  appointment Appointment?
+}
+
+model IntakeAnswer {
+  id            String           @id @default(uuid())
+  submissionId  String
+  submission    IntakeSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      IntakeQuestion   @relation(fields: [questionId], references: [id])
+  answerText    String?
+  answerOptions Json?
+
+  @@index([submissionId])
+}
+
+model ConsentRecord {
+  id             String             @id @default(uuid())
+  reservationId  String
+  reservation    BookingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  consentVersion String
+  acceptedAt     DateTime           @default(now()) @db.Timestamptz(3)
+  ipAddress      String?
+  userAgent      String?
+
+  @@index([reservationId])
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id                      String        @id @default(uuid())
+  appointmentId           String        @unique
+  appointment             Appointment   @relation(fields: [appointmentId], references: [id])
+  stripeCheckoutSessionId String?       @unique
+  stripePaymentIntentId   String?       @unique
+  amount                  Decimal       @db.Decimal(10, 2)
+  currency                String
+  status                  PaymentStatus @default(REQUIRES_PAYMENT)
+  idempotencyKey          String        @unique
+  createdAt               DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime      @updatedAt @db.Timestamptz(3)
+
+  refunds Refund[]
+
+  @@index([status])
+}
+
+model Refund {
+  id                String       @id @default(uuid())
+  paymentId         String
+  payment           Payment      @relation(fields: [paymentId], references: [id])
+  stripeRefundId    String       @unique
+  amount            Decimal      @db.Decimal(10, 2)
+  reason            String?
+  status            RefundStatus @default(PENDING)
+  initiatedByUserId String?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([paymentId])
+}
+
+/// Every inbound Stripe webhook delivery. `stripeEventId` uniqueness is what
+/// makes the handler idempotent against duplicate/delayed deliveries.
+model StripeWebhookEvent {
+  id            String             @id @default(uuid())
+  stripeEventId String             @unique
+  type          String
+  payload       Json
+  status        WebhookEventStatus @default(RECEIVED)
+  receivedAt    DateTime           @default(now()) @db.Timestamptz(3)
+  processedAt   DateTime?          @db.Timestamptz(3)
+  error         String?
+
+  @@index([type, status])
+}
+
+// ---------------------------------------------------------------------------
+// Zoom
+// ---------------------------------------------------------------------------
+
+/// `practitionerId` is nullable so a single org-managed connection (v1) and
+/// future per-practitioner OAuth connections share the same shape.
+model ZoomConnection {
+  id                    String               @id @default(uuid())
+  practitionerId        String?              @unique
+  practitioner          PractitionerProfile? @relation(fields: [practitionerId], references: [id])
+  zoomUserId            String
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime             @db.Timestamptz(3)
+  scopes                String?
+  status                ZoomConnectionStatus @default(CONNECTED)
+  connectedAt           DateTime             @default(now()) @db.Timestamptz(3)
+  disconnectedAt        DateTime?            @db.Timestamptz(3)
+}
+
+model ZoomMeeting {
+  id             String      @id @default(uuid())
+  appointmentId  String      @unique
+  appointment    Appointment @relation(fields: [appointmentId], references: [id])
+  zoomMeetingId  String      @unique
+  joinUrl        String
+  startUrl       String
+  password       String?
+  hostZoomUserId String
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  cancelledAt    DateTime?   @db.Timestamptz(3)
+}
+
+// ---------------------------------------------------------------------------
+// Client magic link, notifications, notes, audit, settings
+// ---------------------------------------------------------------------------
+
+model AppointmentAccessToken {
+  id            String      @id @default(uuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  tokenHash     String      @unique
+  expiresAt     DateTime    @db.Timestamptz(3)
+  usedCount     Int         @default(0)
+  lastUsedAt    DateTime?   @db.Timestamptz(3)
+  revokedAt     DateTime?   @db.Timestamptz(3)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+
+  @@index([appointmentId])
+}
+
+/// Metadata about a sent notification only — never the sensitive body/intake
+/// content. See lib/email for the actual templates.
+model Notification {
+  id             String             @id @default(uuid())
+  type           NotificationType
+  appointmentId  String?
+  appointment    Appointment?       @relation(fields: [appointmentId], references: [id])
+  recipientEmail String
+  status         NotificationStatus @default(QUEUED)
+  sentAt         DateTime?          @db.Timestamptz(3)
+  error          String?
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+
+  @@index([appointmentId])
+  @@index([type, status])
+}
+
+/// Practitioner-authored notes, never visible to clients.
+model InternalNote {
+  id            String      @id @default(uuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  authorUserId  String
+  author        User        @relation(fields: [authorUserId], references: [id])
+  body          String
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime?   @db.Timestamptz(3)
+
+  @@index([appointmentId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actor       User?    @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  actorRole   String?
+  action      String
+  targetType  String?
+  targetId    String?
+  /// Must never contain intake answers or other sensitive free text.
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model SystemSetting {
+  key             String   @id
+  value           Json
+  description     String?
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  updatedByUserId String?
+}

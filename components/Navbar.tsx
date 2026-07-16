@@ -53,17 +53,15 @@ export default function Navbar() {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/book"
             className="text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm"
             style={{
               background: "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)",
             }}
           >
             Book Now
-          </a>
+          </Link>
         </div>
 
         {/* Mobile menu button */}
@@ -92,10 +90,8 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <a
-              href="https://book.carepatron.com/My-Misbah/All?p=sI0lxnz0T5KtoqqOG.Vgbg"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/book"
               onClick={() => setOpen(false)}
               className="mt-3 text-white text-sm font-semibold px-4 py-2.5 rounded-lg text-center"
               style={{
@@ -103,7 +99,7 @@ export default function Navbar() {
               }}
             >
               Book Now
-            </a>
+            </Link>
           </div>
         </div>
       )}
