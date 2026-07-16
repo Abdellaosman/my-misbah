@@ -113,6 +113,7 @@ export default function ReviewStep({
 
       <button
         type="button"
+        data-testid="pay-button"
         onClick={onPay}
         disabled={isProcessing || remainingSeconds <= 0}
         className="w-full mt-6 text-white font-bold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:brightness-110 disabled:opacity-60"

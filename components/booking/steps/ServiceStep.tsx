@@ -32,6 +32,7 @@ export default function ServiceStep({ services, selectedServiceId, onSelect }: S
             <button
               key={service.id}
               type="button"
+              data-testid={`service-option-${service.id}`}
               onClick={() => onSelect(service)}
               className={`w-full text-left rounded-xl border p-4 sm:p-5 transition-colors ${
                 isSelected

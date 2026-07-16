@@ -131,6 +131,7 @@ export default function SlotStep({ practitionerSlug, service, onSelectSlot, isRe
             <button
               key={day.iso}
               type="button"
+              data-testid={`day-option-${day.iso}`}
               onClick={() => {
                 setSelectedDateOverride(day.iso);
                 setSelectedSlot(null);
@@ -175,6 +176,7 @@ export default function SlotStep({ practitionerSlug, service, onSelectSlot, isRe
               <button
                 key={slot.startAt}
                 type="button"
+                data-testid={`slot-option-${slot.startAt}`}
                 disabled={isReserving}
                 onClick={() => {
                   setSelectedSlot(slot.startAt);

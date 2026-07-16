@@ -233,6 +233,7 @@ export default function IntakeStep({
 
       <button
         type="submit"
+        data-testid="intake-submit-button"
         disabled={isSubmitting}
         className="w-full mt-6 text-white font-bold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:brightness-110 disabled:opacity-60"
         style={{ background: "linear-gradient(135deg, #C8680A 0%, #E07D10 100%)" }}

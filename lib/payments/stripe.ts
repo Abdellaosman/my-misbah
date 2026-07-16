@@ -7,6 +7,7 @@ import type {
   RefundInput,
   RefundResult,
 } from "@/lib/payments/provider";
+import { FakePaymentProvider } from "@/lib/payments/fake";
 
 let stripeClient: Stripe | null = null;
 
@@ -83,7 +84,22 @@ function mapRefundReason(reason?: string): Stripe.RefundCreateParams.Reason | un
   return "requested_by_customer";
 }
 
-export const paymentProvider: PaymentProvider = new StripePaymentProvider();
+/**
+ * `PAYMENTS_PROVIDER=fake` swaps in an in-process stand-in that never calls
+ * Stripe (see `lib/payments/fake.ts`). It exists solely for the Playwright
+ * E2E suite to run fully offline; refusing to enable it in production is a
+ * deliberate hard stop against a misconfigured deploy accidentally
+ * "confirming" unpaid bookings.
+ */
+function createPaymentProvider(): PaymentProvider {
+  const useFake = process.env.PAYMENTS_PROVIDER === "fake";
+  if (useFake && process.env.NODE_ENV === "production") {
+    throw new Error("PAYMENTS_PROVIDER=fake must never be enabled in production");
+  }
+  return useFake ? new FakePaymentProvider() : new StripePaymentProvider();
+}
+
+export const paymentProvider: PaymentProvider = createPaymentProvider();
 
 /** Converts a Decimal-as-string amount (e.g. "60.00") to integer minor units for Stripe. */
 export function toMinorUnits(amount: string): number {
