@@ -116,3 +116,13 @@ export async function logout(homePath: string) {
   await destroyCurrentSession();
   redirect(homePath);
 }
+
+/** Bindable directly as a `<form action={...}>` handler from the practitioner portal. */
+export async function practitionerLogout() {
+  return logout("/practitioner/login");
+}
+
+/** Bindable directly as a `<form action={...}>` handler from the admin portal. */
+export async function adminLogout() {
+  return logout("/admin/login");
+}
