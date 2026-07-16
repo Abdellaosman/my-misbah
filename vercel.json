@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/retry-zoom-meetings",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}
