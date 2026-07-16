@@ -89,3 +89,22 @@ export const paymentProvider: PaymentProvider = new StripePaymentProvider();
 export function toMinorUnits(amount: string): number {
   return Math.round(Number(amount) * 100);
 }
+
+/** Converts integer minor units (e.g. cents) back to a "60.00"-style decimal string. */
+export function fromMinorUnits(amountMinorUnits: number): string {
+  return (amountMinorUnits / 100).toFixed(2);
+}
+
+/**
+ * Verifies a Stripe webhook signature and parses the event. Thrown errors
+ * are plain `Error`s (not `AppError`) — the webhook route decides how to
+ * map a verification failure to an HTTP response.
+ */
+export function constructStripeEvent(rawBody: string, signature: string): Stripe.Event {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+  }
+  const stripe = getStripeClient();
+  return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+}
